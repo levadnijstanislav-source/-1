@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Промінь — прототип</title>
+<style>
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#000;font-family:"Times New Roman",serif;font-size:16px}
+main{padding:4px;max-width:900px;margin:0 auto}
+h1{font-size:44px;color:#00f;text-decoration:underline;margin:0}
+.lead{font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:0}
+.phone{border:2px solid #00f;padding:3px}
+.top{display:flex;justify-content:space-between}
+.top b{font-size:13px}.top span{font-size:11px}
+.pill{font-size:11px;text-decoration:underline;color:#00f}
+label{display:block;font-size:12px;margin-top:6px}
+input,textarea{width:100%;font:inherit;border:2px inset #00f;border-radius:0;padding:2px;background:#fff;color:#000}
+textarea{height:70px;resize:none}
+.meta{font-size:11px;margin:2px 0 6px}
+.err{font-size:12px;color:#c00;min-height:16px}
+button{font-family:inherit;font-size:13px;padding:2px 6px;background:#ddd;color:#000;border:2px outset #00f;border-radius:0;cursor:pointer}
+.tip,.done,.note{border:1px solid #00f;padding:2px;font-size:11px;margin-bottom:2px}
+.done{display:none}
+.bar{border:1px solid #00f;height:8px;margin-bottom:4px}.bar i{display:block;height:100%;width:0;background:#00f;transition:width .5s}
+.steps{list-style:none;margin:0 0 4px;padding:0;font-size:12px}
+.steps li{padding:2px 0;color:#666}.steps li.on{color:#00f}.steps li.ok{color:#000}
+.steps li.ok:before{content:"✓ "}.steps li.on:before{content:"… "}
+.idle{font-size:12px;padding:20px 4px}
+</style>
+</head>
+<body>
+<main>
+<h1>Промінь</h1>
+<p class="lead">Повідомлення через супутник, коли немає мобільної мережі. Впишіть, кому і на який номер, напишіть повідомлення й натисніть «Надіслати».</p>
+<div class="grid">
+<section class="phone" aria-label="Екран 1: повідомлення">
+<div class="top"><b>Нове повідомлення</b><span>Екран 1</span></div>
+<div class="pill">Мобільної мережі немає. Супутник доступний.</div>
+<label for="name">Кому (ім'я)</label>
+<input id="name" type="text" placeholder="Наприклад: Мама">
+<label for="phone">Номер телефону</label>
+<input id="phone" type="tel" placeholder="+380 50 123 45 67">
+<label for="msg">Повідомлення (до 160 символів)</label>
+<textarea id="msg" maxlength="160" placeholder="Наприклад: Я в безпеці, потрібна вода"></textarea>
+<div class="meta"><span id="cnt">0 / 160</span> · Координати додаються автоматично</div>
+<div class="err" id="err" role="alert"></div>
+<button id="send">Надіслати через супутник</button>
+</section>
+<section class="phone" aria-label="Екран 2: передача" aria-live="polite">
+<div class="top"><b>Передача</b><span>Екран 2</span></div>
+<div class="idle" id="idle">Тут з'явиться хід передачі, коли ви надішлете повідомлення.</div>
+<div id="flow" hidden>
+<div class="tip">Вийдіть на відкрите місце. Тримайте телефон екраном до себе, антеною до неба.</div>
+<div class="bar"><i id="bar"></i></div>
+<ul class="steps" id="steps">
+<li>Повідомлення збережено</li>
+<li>Супутник знайдено</li>
+<li>Передаємо повідомлення</li>
+<li id="last">Доставлено</li>
+</ul>
+<div class="done" id="done"></div>
+<div class="note">Якщо зв'язок перерветься, повідомлення збережеться й надійде автоматично, коли супутник знову буде видно.</div>
+<button id="reset" style="margin-top:4px">Скасувати</button>
+</div>
+</section>
+</div>
+</main>
+<script>
+function $(i){return document.getElementById(i)}
+var msg=$("msg"),lis=document.querySelectorAll("#steps li"),timers=[];
+msg.addEventListener("input",function(){$("cnt").textContent=msg.value.length+" / 160"});
+["name","phone","msg"].forEach(function(id){$(id).addEventListener("input",function(){$("err").textContent=""})});
+function clear(){timers.forEach(clearTimeout);timers=[];lis.forEach(function(l){l.className=""});$("bar").style.width="0";$("done").style.display="none"}
+function set(i,c){lis[i].className=c}
+$("send").addEventListener("click",function(){
+var n=$("name").value.trim(),p=$("phone").value.trim(),m=msg.value.trim();
+if(!n){$("err").textContent="Впишіть, кому надіслати.";$("name").focus();return}
+if(p.replace(/\D/g,"").length<7){$("err").textContent="Впишіть номер телефону.";$("phone").focus();return}
+if(!m){$("err").textContent="Напишіть повідомлення.";msg.focus();return}
+clear();
+$("last").textContent="Доставлено: "+n+", "+p;
+$("done").textContent="Повідомлення доставлено. "+n+" ("+p+") отримав SMS: «"+m+"»";
+$("idle").hidden=true;$("flow").hidden=false;$("reset").textContent="Скасувати";
+set(0,"on");
+[[600,0,1,25],[1800,1,2,55],[4200,2,3,85]].forEach(function(s){timers.push(setTimeout(function(){set(s[1],"ok");set(s[2],"on");$("bar").style.width=s[3]+"%"},s[0]))});
+timers.push(setTimeout(function(){set(3,"ok");$("bar").style.width="100%";$("done").style.display="block";$("reset").textContent="Нове повідомлення"},6000));
+$("flow").scrollIntoView({behavior:"smooth",block:"nearest"})});
+$("reset").addEventListener("click",function(){clear();$("flow").hidden=true;$("idle").hidden=false});
+</script>
+</body>
+</html>
